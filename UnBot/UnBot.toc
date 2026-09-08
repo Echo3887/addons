@@ -1,0 +1,31 @@
+## Interface: 30300
+## Title: |cff0000ffUnWOW Bot Controller|r
+## Title-zhCN: |cff0000ffUnWOW Bot Controller|r
+## Title-zhTW: |cff0000ffUnWOW Bot Controller|r
+## Notes: UnWOW Bot Controller (supports random and account bots from UnWOW, with basic NPC bot support. Only for 3.3.5a level 80 version)
+## Notes-zhCN: UnWOW Bot Controller(supports random and account bots from UnWOW, with basic NPC bot support. Only for 3.3.5a level 80 version)
+## Notes-zhTW: UnWOW Bot Controller(supports random and account bots from UnWOW, with basic NPC bot support. Only for 3.3.5a level 80 version)
+## Dependencies: YssBossLoot
+## Version: 0.4
+## Author: GPD
+## SavedVariables: UnBotCommandBarConfig, UnBotLogInfo
+Bindings.lua
+UnBotTemplate.xml
+UnBotBagsTemplate.xml
+UnBot.xml
+ExecuteCommand.lua
+UnBot.lua
+UnBotBags.lua
+Tooltips.lua
+IconsFilename.lua
+Online.lua
+OnlineFrame.xml
+NPCFrame.lua
+NPCFrame.xml
+QuestReward.lua
+QuestRewardFrame.xml
+Strategy.lua
+StrategyFrame.xml
+StrategyTips.lua
+ImplantInspectFrame.lua
+EquipInventory.xml

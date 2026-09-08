@@ -1,0 +1,359 @@
+## Interface: 30300
+## Title: |cff1784d1DragonUI|r |cffffffffNew Era|r
+## Notes: Dragonflight-style panels for 3.3.5a — downport of NewEra (Classic 1.15) onto DragonUI.
+## Author: DragonUI_NewEra team
+## Version: 0.1.0
+## Dependencies: DragonUI, !!!ClassicAPI
+## OptionalDeps: DragonUI_Options
+## SavedVariables: DragonUI_NewEraDB
+
+bootstrap.lua
+
+# --- libs: embedded so features don't depend on other addons being loaded ---
+# LibCustomGlow provides the WeakAuras-style "Action Button Glow" (ants) used for the spellbook's
+# active-ability indicator. Embedded (not relying on WeakAuras); LibStub dedupes if another copy loads.
+Libs\LibStub\LibStub.lua
+Libs\LibCustomGlow-1.0\LibCustomGlow-1.0.xml
+
+# --- compat: thin bridge over the REQUIRED !!!ClassicAPI (owner: API Bridge Engineer) ---
+# !!!ClassicAPI is a hard dependency and loads first (via its !!! prefix + Dependencies), so it
+# owns the modern globals (C_Timer/C_Texture/C_Container/C_Item/C_Spell/C_SpellBook/C_Map/Mixin/…).
+# These files now only fill the handful of symbols ClassicAPI does NOT provide; C_Timer/C_Texture
+# are fully ClassicAPI-owned and no longer shipped here. See compat/COVERAGE.md.
+compat\Compat.lua
+# Events.lua adds Frame:RegisterUnitEvent (a 5.0 API; ClassicAPI implements the semantics but only
+# inside its private namespace) plus NE.EV_LEARNED_SPELL. Must follow Compat.lua for NE.compat.
+compat\Events.lua
+compat\C_Container.lua
+compat\C_Item.lua
+compat\C_Spell.lua
+compat\C_Map.lua
+compat\SpellBook.lua
+
+compat\Locale.lua
+Locales\Load_Locales.xml
+
+# --- core: downported NewEra Core chrome toolkit (owner: Core/Chrome Engineer) ---
+core\FrameUtil.lua
+core\Scale.lua
+# PanelManager = the one coordinator for the standalone panel windows (they all hard-code a default
+# anchor and several picked the same one — issue #49). Loads before every module, since each window
+# builder calls NE.panelmgr.Register at the end of its build.
+core\PanelManager.lua
+core\Texture.lua
+core\NineSlice.lua
+core\NineSliceLayouts.lua
+core\PanelChrome.lua
+core\Portrait.lua
+core\Tabs.lua
+# Menu = a MenuUtil-shaped context-menu builder over UIDropDownMenu. Resolves its backend lazily,
+# so it does not care where ClassicAPI sits in the load order.
+core\Menu.lua
+# NavBar = retail's breadcrumb bar, ONCE. It was rebuilt from scratch more than once on this
+# client, and the later copy re-introduced two faults the first had already fixed (Home sitting on
+# the window portrait; crumbs drawn under their own bar's regions). This is the Adventure Guide's
+# implementation, which was the better of them, with the trail handed in by the caller.
+# Needs NE.tex + NE.nineslice, both above.
+core\NavBar.lua
+core\ButtonSkin.lua
+# Squelch = keep a Blizzard region hidden for good (a Show-swap for textures, an OnShow
+# re-hide for frames). Every reskin here has needed it: the cases that forced it into core are
+# the ones where the client re-Shows its own chrome from a path we do not own, and there is no
+# single update hook to sweep from.
+core\Squelch.lua
+# MaxMin = the retail maximize/minimize button. 3.3.5a ships no MaximizeMinimizeButtonFrame
+# template, so it is BUILT rather than reskinned. Art is the RedButton family on sheet
+# 4698972, registered in NineSliceLayouts above — so this must load after it.
+core\MaxMin.lua
+core\ScrollbarReskin.lua
+core\ItemButton.lua
+core\ItemGrid.lua
+core\Modules.lua
+# --- core: HUD-layer primitives (added for the Cooldown Manager port; reusable) ---
+# GridLayout    = Lua reimplementation of retail's GridLayoutFrame template (absent on 3.3.5a).
+# CooldownNumbers = countdown text on Cooldown frames (the widget draws none on this client).
+# AuraSnapshot  = one UnitBuff/UnitDebuff walk per unit per frame, shared addon-wide.
+# SpellRanks    = per-ability rank ids from the live spellbook. Load-bearing: GetSpellInfo's 7th
+#                 return is castTime here, NOT the spellID it is on modern clients.
+core\GridLayout.lua
+core\CooldownNumbers.lua
+core\AuraSnapshot.lua
+core\SpellRanks.lua
+
+# --- textures: art + atlas registration data (owner: Asset Pipeline Engineer) ---
+Textures\Assets.lua
+
+# --- integration: DragonUI handshake/options/module bridge (owner: Integration Liaison) ---
+integration\Register.lua
+integration\Options.lua
+
+# --- qa: in-game harness + manifest (owner: QA/Harness Engineer) ---
+qa\Harness.lua
+
+# NOTE: no Character panel and no Collections window here — DragonUI ships both of those itself, so
+# ours were removed rather than kept as a second replacement over the top.
+
+# --- Spellbook (standalone War-Within-style book; learned spells) ---
+modules\spellbook\Assets.lua
+modules\spellbook\Window.lua
+modules\spellbook\Spellbook.lua
+
+# --- Talents (standalone retail-style 3-tree panel over WotLK grid talents) ---
+# Load order: Assets (atlas rects) -> NodeData (shape layer) -> Talents (scaffold/chrome/pools)
+# -> Behavior (live data + preview/commit). RENDER-BEFORE-WIRE.
+modules\talents\Assets.lua
+modules\talents\NodeData.lua
+modules\talents\Talents.lua
+modules\talents\SpecTabs.lua
+modules\talents\Behavior.lua
+modules\talents\Loadouts.lua
+modules\talents\LoadoutsUI.lua
+modules\talents\Glyphs.lua
+
+# --- Bags (DF metal chrome, smart sort, rarity/usable cues) — WORK IN PROGRESS ---
+# CombinedBag.lua = the all-in-one grid window (default; can be turned off in the NewEra options).
+# Bags.lua = per-window restyle of the stock frames (superseded by the combined window by default).
+# Both build on core/ItemGrid + the chrome toolkit.
+modules\bags\BagSkin.lua
+modules\bags\Bags.lua
+modules\bags\CombinedBag.lua
+
+# --- Inspect (modern chrome on the LoadOnDemand Blizzard_InspectUI window) ---
+# A RESKIN, not a replacement: on 3.3.5a InspectFrame is a bare 384x512 frame whose three tab
+# subframes (PaperDoll / PVP / Talent) own all of the wooden art and all of the content, and the
+# PvP and Talents panes are Blizzard's to keep -- scaled and anchored so their content lands on the
+# one window size every tab uses. Load order: InspectFrame (chrome, tabs, geometry + the pane fit)
+# -> PaperDoll (the Character tab re-laid-out to DragonUI's character-panel geometry) ->
+# Register (the reload-gated module entry + the ADDON_LOADED gate the LoD window needs).
+# See modules/inspect/PORT_NOTES.md for what the 1.15 source has that this client cannot.
+modules\inspect\InspectFrame.lua
+modules\inspect\PaperDoll.lua
+# The PVP tab, drawn on our own furniture over the client's inspect-honor/arena data. The native
+# InspectPVPFrame stays loaded and keeps driving that data; only its content is squelched.
+modules\inspect\PvPPane.lua
+modules\inspect\Register.lua
+
+# --- Merchant (modern chrome on the client's vendor window; downport of NewEra/MerchantFrame) ---
+# A RESKIN, not a replacement: FrameXML keeps MerchantFrame_Update and all of the buy/sell/repair
+# behaviour, and we re-dress the frame it paints on. Load order: Assets (sheets + atlas rects; must
+# precede every SetAtlas call) -> MerchantFrame (chrome, rows, per-update sync, and the deferred
+# build) -> the two added buttons, whose builders MerchantFrame's build pass calls -> Register (the
+# reload-gated module entry). See modules/merchant/PORT_NOTES.md for what the 1.15 source has that
+# this client cannot.
+modules\merchant\Assets.lua
+modules\merchant\MerchantFrame.lua
+modules\merchant\SellAllJunk.lua
+modules\merchant\BuybackUndo.lua
+# /nemerchant — report-only state dump. A desaturated icon and an icon that never resolved look the
+# same on screen; this prints which one it is.
+modules\merchant\Diagnostics.lua
+modules\merchant\Register.lua
+
+# --- Professions (retail-style crafting window; downport of NewEra/Professions/Crafting) ---
+# Load order: Assets (atlas + texcoord registration) -> Window (chrome + event wiring) ->
+# RecipeList (left panel, FauxScrollFrame) -> Crafting (schematic form, rank bar, controls).
+modules\professions\Assets.lua
+modules\professions\Window.lua
+modules\professions\RecipeList.lua
+modules\professions\Crafting.lua
+
+# --- Auction House (visual shell + optional Auctionator embedded tabs) ---
+modules\auctionhouse\Assets.lua
+modules\auctionhouse\Browse.lua
+modules\auctionhouse\Sell.lua
+modules\auctionhouse\Auctions.lua
+modules\auctionhouse\TabBridge.lua
+modules\auctionhouse\Window.lua
+modules\auctionhouse\AuctionatorEmbed.lua
+
+# --- Guild (modern Communities-style guild window; downport of NewEra/Guild) ---
+# Load order: Assets (BLPs + atlas rects) -> Window (shell + mode switching + the Roster-only left
+# GuildColumn) -> data layers (Roster/Info/Chat) -> Tabard (the GuildColumn's crest badge) -> Open
+# (route ToggleGuildFrame / native GuildFrame to NE_GuildFrame).
+modules\guild\Assets.lua
+modules\guild\Window.lua
+modules\guild\Roster.lua
+modules\guild\Info.lua
+modules\guild\Chat.lua
+modules\guild\Tabard.lua
+modules\guild\Open.lua
+
+# --- Social (modern friends window; downport of NewEra/Social) ---
+# Load order: Assets (portrait BLP) -> Window (shell + tabs + ToggleFriendsFrame redirect) -> the
+# per-tab list files. The Guild tab opens the Guild window above. Chat (channels) + Raid have no
+# NewEra counterpart to port — they're built natively on the classic channel/raid APIs.
+modules\social\Assets.lua
+modules\social\Window.lua
+modules\social\Friends.lua
+modules\social\Who.lua
+modules\social\Channels.lua
+modules\social\Raid.lua
+
+# --- LFG (unified retail-style Group Finder over the 3.3.5a Dungeon Finder + Raid Browser) ---
+# Load order: Assets (BLPs + atlas rects) -> Window (shell + bluemenu rail + Dungeons/Raids
+# category buttons + animated eye) -> Roles (shared role-row factory) -> Dungeons (LFD queue
+# pane) -> Raids (LFR queue/browse pane) -> Open (route ToggleLFDParentFrame /
+# ToggleLFRParentFrame to NE_GroupFinderFrame). The native hidden LFD/LFR frames stay loaded as
+# the state machine; these panes are a modern view over the same shared FrameXML lists.
+# NOTE: loads after guild (Textures/Guild ships the bluemenu rail sheets we reuse).
+modules\lfg\Assets.lua
+modules\lfg\Window.lua
+modules\lfg\Roles.lua
+modules\lfg\Dungeons.lua
+modules\lfg\Raids.lua
+modules\lfg\Open.lua
+
+# --- Encounter Journal / Adventure Guide (downport of NewEra/EncounterJournal) ---
+# Classic + TBC + WotLK (bosses/loot only — see DataWotLK.lua header for what's still missing:
+# lore, abilities, art, models). Load order: Support (dropdown/tooltip/item-cache shims) ->
+# Assets (chrome BLPs + NE.flavor) -> Slices (texcoord table) -> Data (vanilla seed) -> DataTBC
+# (appends TBC instances, tier=2) -> DataWotLK (appends WotLK instances, tier=3) -> overlays
+# (PortraitOverrides/AbilitiesEra/AbilitiesTBC/LootEra merge into NE.ej.DATA; must follow the
+# data they patch) -> ModelCam (generated per-boss cameras) -> EncounterItem (loot row builder)
+# -> EncounterPage (encounter view) -> NavBar (breadcrumb + search) -> EncounterJournal (window
+# shell + boot).
+modules\encounterjournal\Support.lua
+modules\encounterjournal\Assets.lua
+modules\encounterjournal\Slices.lua
+modules\encounterjournal\Data.lua
+modules\encounterjournal\DataTBC.lua
+modules\encounterjournal\DataWotLK.lua
+modules\encounterjournal\PortraitOverrides.lua
+modules\encounterjournal\AbilitiesEra.lua
+modules\encounterjournal\AbilitiesTBC.lua
+modules\encounterjournal\AbilitiesWotLK.lua
+modules\encounterjournal\LootEra.lua
+modules\encounterjournal\ModelCam.lua
+modules\encounterjournal\EncounterItem.lua
+modules\encounterjournal\EncounterPage.lua
+modules\encounterjournal\NavBar.lua
+modules\encounterjournal\EncounterJournal.lua
+modules\encounterjournal\MicroButton.lua
+
+# --- Cooldown Manager (downport of NewEra/CooldownViewer) — PHASE 1: Essential + Utility ---
+# Retail's Cooldown Manager runs on C_CooldownViewer, which exists on no Classic-family client;
+# NewEra rebuilt it as retail's visual model over curated per-class data, and that is what ports.
+# Load order: ClassData (pure tables) -> CooldownViewer (core: settings store, spell-list
+# resolution) -> ItemMixins (the per-tile mixin) -> Viewers (frames built in Lua, replacing
+# CooldownViewer.xml — MaskTexture and GridLayoutFrame are both unavailable here) -> Register
+# (movers + options tab, replacing EditModeRegister.lua). See modules/cooldownviewer/PORT_PLAN.md.
+modules\cooldownviewer\ClassData.lua
+# WotLK seed: additive appends onto the vanilla lists above, plus the whole of Death Knight. Every
+# id is generated from this client's own Spell.dbc + SkillLineAbility.dbc, never hand-typed.
+# Must load AFTER ClassData (it appends to those tables) and BEFORE the viewer core reads them.
+modules\cooldownviewer\CdmSeedWotLK.lua
+# Phase 7d: the per-class catalog of trackable SELF-BUFFS — what the Tracked Buffs/Bars picker
+# OFFERS, standing in for retail's curated per-spec aura set. Also generated from this client's own
+# data (tools/cdm-spellgen/gen_auracatalog.py), and read by CooldownViewer's catalog accessor.
+modules\cooldownviewer\CdmAuraCatalog.lua
+# Which aura a castable spell DRIVES, and on which unit. The catalog above answers "what buffs can I
+# have"; this answers "what does pressing THIS put up, and where do I look for it" — the edge that
+# lets Slam find `Slam!`, Faerie Fire find its debuff on the target and Earth Shield find its buff on
+# a party member. Generated by tools/cdm-spellgen/gen_spellauras.py; read by ItemMixins and Alerts.
+modules\cooldownviewer\CdmSpellAuras.lua
+modules\cooldownviewer\CooldownViewer.lua
+# Phase 8a: the VIEWERS' art (the /cdm window's own is SettingsAssets.lua, far below). Must load
+# before ItemMixins/AuraItemMixins, whose OnLoad resolves these atlases as each tile is built.
+modules\cooldownviewer\Assets.lua
+# On-use trinket discovery + the per-token assignment registry. Overrides CooldownViewer.lua's
+# GetEquipItemsForCategory fallback, so it must load after it and before Viewers reads it.
+modules\cooldownviewer\Equip.lua
+modules\cooldownviewer\ItemMixins.lua
+modules\cooldownviewer\Viewers.lua
+# Phase 3, the aura-driven viewers. AuraItemMixins needs M.CropIcon/M.TooltipSetSpell from
+# ItemMixins; BuffViewers needs M.BaseViewerMixin from Viewers — so both load after those two.
+modules\cooldownviewer\AuraItemMixins.lua
+modules\cooldownviewer\BuffViewers.lua
+# Phase 4a: per-cooldown alerts and ready sounds. The ENGINE and its stores only — assignment UI
+# belongs to the Phase 4b settings panel. AlertData is generated
+# (tools/cdm-spellgen/gen_alertdata.py) and must precede Alerts, which reads it.
+modules\cooldownviewer\AlertData.lua
+modules\cooldownviewer\SoundAlertData.lua
+modules\cooldownviewer\Alerts.lua
+# Phase 4b-1: the standalone /cdm settings window (shell). SettingsAssets registers the side-tab
+# art and must load before the panel builds tabs from it. Both need core/Tabs.lua and
+# core/PanelChrome.lua, which load far earlier.
+modules\cooldownviewer\SettingsAssets.lua
+modules\cooldownviewer\SettingsPanel.lua
+# 4b-2: the category model and the grids that render it. CdmArsenal is generated
+# (tools/cdm-spellgen/gen_arsenal.py) and feeds the adapter's Hidden catalog, so it loads first;
+# SettingsCategories replaces the panel's RefreshLayout stub, so it loads after the panel.
+modules\cooldownviewer\CdmArsenal.lua
+modules\cooldownviewer\SettingsAdapter.lua
+modules\cooldownviewer\SettingsCategories.lua
+# 4b-3: the right-click item menu and the settings cog — the assignment surface that finally makes
+# the Phase 4a alert and ready-sound stores reachable. Needs core/Menu.lua and CDS.adapter.
+modules\cooldownviewer\SettingsMenu.lua
+# 4b-4: drag to reorder and reassign. Needs the adapter's ReorderTo/AssignAt and the tiles built by
+# SettingsCategories, which supplies the OnDragStart that calls in here.
+modules\cooldownviewer\SettingsReorder.lua
+# 4b-5: named layouts, import/export, and the snapshot/restore pair that finally makes the panel's
+# Revert button real. Needs core/Menu.lua for the footer menu and CDS.RefreshLayout from
+# SettingsCategories, so it loads last of the settings files.
+modules\cooldownviewer\SettingsPresets.lua
+# 4c: the Settings tab. SettingsControls is the widget kit (checkbox / slider / menu-button over the
+# client's own templates, since DragonUI's AceGUI option controls only render inside an AceGUI
+# container); SettingsOptions is the page it builds. The page reads M.VIEWER_SPECS, which Register.lua
+# defines below — that is fine, it is read when the tab is first opened, not at load.
+modules\cooldownviewer\SettingsControls.lua
+modules\cooldownviewer\SettingsOptions.lua
+# Each viewer's own settings as a dialog beside the frame in edit mode, retail's shape.
+# Needs the SettingsControls kit above and NE.RegisterHUDFrame's `editorSettings` seam; Register.lua
+# below hands it one opener per viewer at PLAYER_LOGIN.
+modules\cooldownviewer\EditorPanel.lua
+modules\cooldownviewer\Register.lua
+
+# --- Level Up Display (retail's level-up banner, learned from the live server) ---
+# Rebuild rather than a port. Both prior versions ship a hand-typed spellList[CLASS][level] table
+# that is only correct for the server it was written against; this addon runs on many. Harvest.lua
+# reads the same facts off the trainer window (GetTrainerServiceInfo / ...LevelReq / ...Icon),
+# battleground brackets (GetBattlegroundInfo) and the client's dungeon lists (GetLFGDungeonInfo)
+# instead, so a custom server's own abilities and levels are picked up without any baked data.
+# Load order: Assets (art + entry-type presets) -> Data (the small Blizzlike fallback for what no
+# API reports) -> Harvest (writes the store) -> Unlocks (merges observed over fallback; reads both
+# of the above) -> Banner + SideDisplay (the two views, both call Unlocks) -> Register (events,
+# options, mover, /nelevelup).
+modules\levelup\Assets.lua
+modules\levelup\Data.lua
+modules\levelup\Harvest.lua
+modules\levelup\Unlocks.lua
+modules\levelup\Banner.lua
+modules\levelup\SideDisplay.lua
+modules\levelup\Register.lua
+
+# --- Boss Timers (downport of NewEra/Alerts/BossMods) — DBM-driven, opt-in ---
+# Retail's Blizzard_EncounterTimeline ("Boss Abilities": a vertical rail of ability icons sliding
+# toward now, or a Cooldown-Manager-styled bar list) + Blizzard_EncounterWarnings (three text
+# tiers). Both run on C_EncounterTimeline, which exists on no Classic-family client — so the
+# ENCOUNTER DATA comes from DBM and we are only the renderer, consuming its callbacks through one
+# internal seam (BM.Bus*). Without DBM the module never boots (requiresAddOn in Register.lua).
+# Loads after cooldownviewer: the bar rows and icon rings draw with CDM atlases that
+# modules/cooldownviewer/Assets.lua registers. See modules/bossmods/PORT_PLAN.md.
+# Load order: Assets (sheets + combattimeline rects; before any SetAtlas call) -> BossMods (the
+# settings store, anchor, bar pool, rail, and the bus) -> EventIcon (the shared icon assembly,
+# built by the rail's tracks) -> Warnings (the three tiers) -> DBMAdapter (callbacks -> bus, and
+# DBM's own bar/warning suppression; needs both renderers present) -> Register (HUD frames,
+# options, /nebossmods).
+modules\bossmods\Assets.lua
+modules\bossmods\BossMods.lua
+modules\bossmods\EventIcon.lua
+modules\bossmods\Warnings.lua
+modules\bossmods\DBMAdapter.lua
+# Each frame's own settings as a dialog beside it in edit mode — retail's shape, and the
+# Cooldown Manager's. Built from CDM's SettingsControls kit (NE.cooldownviewersettings.controls),
+# which the block above loads, and reached through NE.RegisterHUDFrame's `editorSettings` seam.
+modules\bossmods\EditorPanel.lua
+modules\bossmods\Register.lua
+
+# --- Details! skin (downport of NewEra/DetailsSkin) — opt-in, no meter of our own ---
+# A theme that makes the Details! Damage Meter read like retail's. The 3.3.5a Details backport is
+# v8.3.0 (Jan 2020), which is missing a third of the skin keys the 1.15 source drives — the port's
+# adaptations are annotated in DetailsSkin.lua's header. Registering the skin is harmless and
+# changes nothing on screen; applying it is a button on the options tab (and /nedetails).
+# Load order: DetailsSkin (the skin table + install, which must run as early as possible or Details
+# overwrites the player's saved skin choice) -> Register (options section, slash command).
+modules\detailsskin\DetailsSkin.lua
+modules\detailsskin\Register.lua
+
+# --- demo: Sprint-0 proof panel (owner: Core/Chrome Engineer) ---
+core\_HelloDemo.lua

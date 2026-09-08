@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: MiniMapGrabber
+## Notes: Consolidates all minimap buttons into one toggleable button.
+## Author: @jonasalv @narchda
+## Version: 1.0.3
+## SavedVariablesPerCharacter: MMG_CustomSettings
+
+MiniMapGrabber.lua

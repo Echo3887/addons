@@ -1,0 +1,20 @@
+## Interface: 30300
+## Title: |cffffffff>|r|cff228B22Astrolabe|r |cffffe00a-|r |cffff0000HD client|r
+## Title-ruRU: |cffffffff>|r|cff228B22Астролябия|r |cffffe00a-|r |cffff0000HD client|r
+## Notes: Fix for Astrolabe 
+## Notes-ruRU: Исправления к Astrolabe
+## Notes-esES: Solución para astrolabio
+## Notes-esMX: Solución para astrolabio
+## Notes-deDE: Fix für Astrolabium
+## Notes-frFR: Correctif pour Astrolabe
+## Notes-koKR: Astrolabe 수정
+## Notes-enCN: 修复星盘
+## Notes-zhCN: 修复星盘
+## Notes-zhTW: 修復星盤
+
+## Version: 0.5
+## Author: Esamynn, Trimitor
+## X-Category: Map/Minimap
+
+# Load
+Load.xml

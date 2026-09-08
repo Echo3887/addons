@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: |cff1784d1E|r|cffe5e3e3lvUI|r |cff1784d1F|r|cffe5e3e3ix|r |cff1784d1R|r|cffe5e3e3ole|r
+## Notes: Saves your character boss fights data to track your improvement.
+## Dependencies: ElvUI
+## Version: 0.0.1
+## Author: Nerestaren
+## X-Website: https://github.com/nerestaren/ElvUI_FixRole
+
+ElvUI_FixRole.lua
