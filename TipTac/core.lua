@@ -794,10 +794,12 @@ local gtt_anchorPoint;
 -- Get The Anchor Position Depending on the Tip Content and Parent Frame -- Do not depend on "u.token" here, as it might not have been cleared yet!
 -- Checking "mouseover" here isn't ideal due to actionbars, it will sometimes return true because of selfcast.
 local function GetAnchorPosition()
-	local mouseFocus = GetMouseFocus();
-	local isUnit = UnitExists("mouseover") or (mouseFocus and mouseFocus:GetAttribute("unit"));
-	local var = "anchor"..(mouseFocus == WorldFrame and "World" or "Frame")..(isUnit and "Unit" or "Tip");
-	return cfg[var.."Type"], cfg[var.."Point"];
+       local mouseFocus = GetMouseFocus();
+       local isWorldTip = (mouseFocus == WorldFrame);
+       local isUnit = UnitExists("mouseover") or (mouseFocus and mouseFocus:GetAttribute("unit"));
+       gtt_isWorldTip = isWorldTip;
+       local var = "anchor"..(isWorldTip and "World" or "Frame")..(isUnit and "Unit" or "Tip");
+       return cfg[var.."Type"], cfg[var.."Point"];
 end
 
 -- HOOK: GTT:Show -- If there are any bar offsets, resize the tip
@@ -828,7 +830,9 @@ end
 local function GTTHook_OnShow(self,...)
 	gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 	if (gtt_anchorType == "mouse") and (self:GetAnchorType() ~= "ANCHOR_CURSOR") then
-		tt:AnchorFrameToMouse(self);
+		if (not gtt_isWorldTip) then
+tt:AnchorFrameToMouse(self);
+end
 	end
 	if (self:IsOwned(UIParent)) and (not self:GetUnit()) then
 		self:SetBackdropColor(unpack(cfg.tipColor));
