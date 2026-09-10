@@ -825,10 +825,6 @@ end
 
 -- HOOK: GTT OnShow -- This ensures that default anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 local function GTTHook_OnShow(self,...)
-    -- TEST: WorldFrame/3D ohne TipTac-OnShow-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 	if (gtt_anchorType == "mouse") and (self:GetAnchorType() ~= "ANCHOR_CURSOR") then
 		tt:AnchorFrameToMouse(self);

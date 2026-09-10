@@ -787,7 +787,8 @@ end
 
 -- GTT Control Variables
 local gtt_lastUpdate = 0;
-local gtt_resizePending = false;
+local gtt_worldResizeFix = false;
+local gtt_newHeight;
 local gtt_anchorType;
 local gtt_anchorPoint;
 
@@ -803,10 +804,11 @@ end
 -- HOOK: GTT:Show -- If there are any bar offsets, resize the tip
 local gttShow = gtt.Show;
 gtt.Show = function(self,...)
-    gttShow(self,...);
-    if (bars.offset) then
-        gtt_resizePending = true;
-    end
+	gttShow(self,...);
+	if (bars.offset) and (not gtt_worldResizeFix) then
+		gtt_newHeight = (self:GetHeight() + bars.offset);
+		self:SetHeight(gtt_newHeight);
+	end
 end
 
 -- HOOK: GTT:FadeOut -- This allows us to check when the tip is fading out.
@@ -825,10 +827,6 @@ end
 
 -- HOOK: GTT OnShow -- This ensures that default anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 local function GTTHook_OnShow(self,...)
-    -- TEST: WorldFrame/3D ohne TipTac-OnShow-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 	if (gtt_anchorType == "mouse") and (self:GetAnchorType() ~= "ANCHOR_CURSOR") then
 		tt:AnchorFrameToMouse(self);
@@ -840,10 +838,6 @@ end
 
 -- HOOK: GTT OnUpdate
 local function GTTHook_OnUpdate(self,elapsed)
-    -- TEST: WorldFrame/3D ohne TipTac-OnUpdate-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	-- This ensures that mouse anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 	if (self:GetAnchorType() == "ANCHOR_CURSOR") then
 		self:SetBackdropColor(unpack(cfg.tipColor));
@@ -875,18 +869,15 @@ local function GTTHook_OnUpdate(self,elapsed)
 		end
 	end
 
-	-- Deferred resize:
--- Blizzard kann die GameTooltip-Hoehe nach OnTooltipSetUnit
--- noch einmal selbst veraendern. Deshalb wird die zusaetzliche
--- Hoehe erst im folgenden OnUpdate angewendet.
-if (gtt_resizePending) and (bars.offset) and (self:IsShown()) then
-    self:SetHeight(self:GetHeight() + bars.offset);
-    gtt_resizePending = false;
-end
+	-- Resize the Tooltip if it's size has changed more than 0.1 units
+	if (gtt_newHeight) and (not gtt_worldResizeFix) and (abs(self:GetHeight() - gtt_newHeight) > 0.1) then
+		self:SetHeight(gtt_newHeight);
+	end
 end
 
 -- HOOK: GTT OnTooltipSetUnit
 local function GTTHook_OnTooltipSetUnit(self,...)
+    gtt_worldResizeFix = (GetMouseFocus() == WorldFrame);
 	-- Hides the tip in combat if one of those options are set. Also checks if the Shift key is pressed, and cancels hiding of the tip (if that option is set, that is)
 	if (cfg.hideAllTipsInCombat or cfg.hideUFTipsInCombat and self:GetOwner() ~= UIParent) and (not cfg.showHiddenTipsOnShift or not IsShiftKeyDown()) and (UnitAffectingCombat("player")) then
 		self:Hide();
@@ -923,7 +914,7 @@ end
 local function GTTHook_OnTooltipCleared(self,...)
 	wipe(u);
 	gtt_lastUpdate = 0;
-    gtt_resizePending = false;
+	gtt_newHeight = nil;
 	self.fadeOut = nil;
 	bars.offset = nil;
 	for i = 1, #bars do

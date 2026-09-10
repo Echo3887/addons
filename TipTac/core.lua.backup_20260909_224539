@@ -1,4 +1,4 @@
-local _G = getfenv(0);
+﻿local _G = getfenv(0);
 local abs = abs;
 local gtt = GameTooltip;
 local UnitExists = UnitExists;
@@ -787,7 +787,7 @@ end
 
 -- GTT Control Variables
 local gtt_lastUpdate = 0;
-local gtt_resizePending = false;
+local gtt_newHeight;
 local gtt_anchorType;
 local gtt_anchorPoint;
 
@@ -803,10 +803,11 @@ end
 -- HOOK: GTT:Show -- If there are any bar offsets, resize the tip
 local gttShow = gtt.Show;
 gtt.Show = function(self,...)
-    gttShow(self,...);
-    if (bars.offset) then
-        gtt_resizePending = true;
-    end
+	gttShow(self,...);
+	if (bars.offset) then
+		gtt_newHeight = (self:GetHeight() + bars.offset);
+		self:SetHeight(gtt_newHeight);
+	end
 end
 
 -- HOOK: GTT:FadeOut -- This allows us to check when the tip is fading out.
@@ -825,10 +826,6 @@ end
 
 -- HOOK: GTT OnShow -- This ensures that default anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 local function GTTHook_OnShow(self,...)
-    -- TEST: WorldFrame/3D ohne TipTac-OnShow-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 	if (gtt_anchorType == "mouse") and (self:GetAnchorType() ~= "ANCHOR_CURSOR") then
 		tt:AnchorFrameToMouse(self);
@@ -840,10 +837,6 @@ end
 
 -- HOOK: GTT OnUpdate
 local function GTTHook_OnUpdate(self,elapsed)
-    -- TEST: WorldFrame/3D ohne TipTac-OnUpdate-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	-- This ensures that mouse anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 	if (self:GetAnchorType() == "ANCHOR_CURSOR") then
 		self:SetBackdropColor(unpack(cfg.tipColor));
@@ -875,16 +868,39 @@ local function GTTHook_OnUpdate(self,elapsed)
 		end
 	end
 
-	-- Deferred resize:
--- Blizzard kann die GameTooltip-Hoehe nach OnTooltipSetUnit
--- noch einmal selbst veraendern. Deshalb wird die zusaetzliche
--- Hoehe erst im folgenden OnUpdate angewendet.
-if (gtt_resizePending) and (bars.offset) and (self:IsShown()) then
-    self:SetHeight(self:GetHeight() + bars.offset);
-    gtt_resizePending = false;
-end
+	-- Resize the Tooltip if it's size has changed more than 0.1 units
+	if (gtt_newHeight) and (abs(self:GetHeight() - gtt_newHeight) > 0.1) then
+		self:SetHeight(gtt_newHeight);
+	end
 end
 
+-- HOOK: GTT OnSizeChanged
+-- Blizzard performs another resize after OnTooltipSetUnit.
+-- Only WorldFrame-owned tooltips need the custom bars re-anchored.
+local function GTTHook_OnSizeChanged(self,...)
+if (self ~= gtt) or (not u.token) or (not bars.offset) or (not self:IsShown()) then
+return;
+end
+if (self:GetOwner() ~= WorldFrame) then
+return;
+end
+
+bars[2]:ClearAllPoints();
+bars[1]:ClearAllPoints();
+
+if (bars[2]:IsShown()) then
+bars[2]:SetPoint("BOTTOMLEFT",8,9);
+bars[2]:SetPoint("BOTTOMRIGHT",-8,9);
+
+if (bars[1]:IsShown()) then
+bars[1]:SetPoint("BOTTOMLEFT",bars[2],"TOPLEFT",0,4);
+bars[1]:SetPoint("BOTTOMRIGHT",bars[2],"TOPRIGHT",0,4);
+end
+elseif (bars[1]:IsShown()) then
+bars[1]:SetPoint("BOTTOMLEFT",8,9);
+bars[1]:SetPoint("BOTTOMRIGHT",-8,9);
+end
+end
 -- HOOK: GTT OnTooltipSetUnit
 local function GTTHook_OnTooltipSetUnit(self,...)
 	-- Hides the tip in combat if one of those options are set. Also checks if the Shift key is pressed, and cancels hiding of the tip (if that option is set, that is)
@@ -923,7 +939,7 @@ end
 local function GTTHook_OnTooltipCleared(self,...)
 	wipe(u);
 	gtt_lastUpdate = 0;
-    gtt_resizePending = false;
+	gtt_newHeight = nil;
 	self.fadeOut = nil;
 	bars.offset = nil;
 	for i = 1, #bars do
@@ -960,6 +976,7 @@ function tt:HookTips()
 	gtt:HookScript("OnShow",GTTHook_OnShow);
 	gtt:HookScript("OnUpdate",GTTHook_OnUpdate);
 	gtt:HookScript("OnTooltipSetUnit",GTTHook_OnTooltipSetUnit);
+gtt:HookScript("OnSizeChanged",GTTHook_OnSizeChanged);
 	gtt:HookScript("OnTooltipCleared",GTTHook_OnTooltipCleared);
 	-- HOOK: OnHide & OnTooltipSetItem Scripts
 	for index, tip in ipairs(TT_TipsToModify) do

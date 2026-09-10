@@ -787,27 +787,24 @@ end
 
 -- GTT Control Variables
 local gtt_lastUpdate = 0;
-local gtt_resizePending = false;
+
 local gtt_anchorType;
 local gtt_anchorPoint;
 
 -- Get The Anchor Position Depending on the Tip Content and Parent Frame -- Do not depend on "u.token" here, as it might not have been cleared yet!
 -- Checking "mouseover" here isn't ideal due to actionbars, it will sometimes return true because of selfcast.
 local function GetAnchorPosition()
-	local mouseFocus = GetMouseFocus();
-	local isUnit = UnitExists("mouseover") or (mouseFocus and mouseFocus:GetAttribute("unit"));
-	local var = "anchor"..(mouseFocus == WorldFrame and "World" or "Frame")..(isUnit and "Unit" or "Tip");
-	return cfg[var.."Type"], cfg[var.."Point"];
+        local mouseFocus = GetMouseFocus();
+        local isWorldTip = (mouseFocus == WorldFrame);
+        local isUnit = UnitExists("mouseover") or (mouseFocus and mouseFocus:GetAttribute("unit"));
+
+        -- WorldFrame/3D-Status für GTTHook_OnShow merken.
+        gtt_isWorldTip = isWorldTip;
+
+        local var = "anchor"..(isWorldTip and "World" or "Frame")..(isUnit and "Unit" or "Tip");
+        return cfg[var.."Type"], cfg[var.."Point"];
 end
 
--- HOOK: GTT:Show -- If there are any bar offsets, resize the tip
-local gttShow = gtt.Show;
-gtt.Show = function(self,...)
-    gttShow(self,...);
-    if (bars.offset) then
-        gtt_resizePending = true;
-    end
-end
 
 -- HOOK: GTT:FadeOut -- This allows us to check when the tip is fading out.
 local gttFadeOut = gtt.FadeOut;
@@ -825,13 +822,12 @@ end
 
 -- HOOK: GTT OnShow -- This ensures that default anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 local function GTTHook_OnShow(self,...)
-    -- TEST: WorldFrame/3D ohne TipTac-OnShow-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 	if (gtt_anchorType == "mouse") and (self:GetAnchorType() ~= "ANCHOR_CURSOR") then
-		tt:AnchorFrameToMouse(self);
+		-- TEST: tt:AnchorFrameToMouse deaktiviert;
+                if (not gtt_isWorldTip) then
+                        tt:AnchorFrameToMouse(self);
+                end
 	end
 	if (self:IsOwned(UIParent)) and (not self:GetUnit()) then
 		self:SetBackdropColor(unpack(cfg.tipColor));
@@ -840,10 +836,6 @@ end
 
 -- HOOK: GTT OnUpdate
 local function GTTHook_OnUpdate(self,elapsed)
-    -- TEST: WorldFrame/3D ohne TipTac-OnUpdate-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	-- This ensures that mouse anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 	if (self:GetAnchorType() == "ANCHOR_CURSOR") then
 		self:SetBackdropColor(unpack(cfg.tipColor));
@@ -851,7 +843,8 @@ local function GTTHook_OnUpdate(self,elapsed)
 		return;
 	-- Anchor GTT to Mouse
 	elseif (gtt_anchorType == "mouse") then
-		tt:AnchorFrameToMouse(self);
+		-- TEST: tt:AnchorFrameToMouse deaktiviert;
+                -- tt:AnchorFrameToMouse(self);
 	end
 
 	-- Fadeout / Update Tip if Showing a Unit
@@ -875,14 +868,7 @@ local function GTTHook_OnUpdate(self,elapsed)
 		end
 	end
 
-	-- Deferred resize:
--- Blizzard kann die GameTooltip-Hoehe nach OnTooltipSetUnit
--- noch einmal selbst veraendern. Deshalb wird die zusaetzliche
--- Hoehe erst im folgenden OnUpdate angewendet.
-if (gtt_resizePending) and (bars.offset) and (self:IsShown()) then
-    self:SetHeight(self:GetHeight() + bars.offset);
-    gtt_resizePending = false;
-end
+	
 end
 
 -- HOOK: GTT OnTooltipSetUnit
@@ -923,7 +909,7 @@ end
 local function GTTHook_OnTooltipCleared(self,...)
 	wipe(u);
 	gtt_lastUpdate = 0;
-    gtt_resizePending = false;
+
 	self.fadeOut = nil;
 	bars.offset = nil;
 	for i = 1, #bars do

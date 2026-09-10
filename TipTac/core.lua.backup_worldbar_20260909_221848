@@ -592,6 +592,35 @@ local function SetupHealthAndPowerBar()
 	if (cfg.hideDefaultBar) then
 		GameTooltipStatusBar:Hide();
 	end
+		-- Remember that the custom bars have to be re-anchored
+		-- after GameTooltip has completed its final layout pass.
+		bars.needsReanchor = true;
+end
+
+-- Re-anchor custom status bars after the GameTooltip has completed
+-- its final size/layout pass.
+local function ReanchorHealthAndPowerBars()
+    if (not bars.needsReanchor) then
+        return;
+    end
+
+    bars.needsReanchor = nil;
+
+    bars[2]:ClearAllPoints();
+    bars[1]:ClearAllPoints();
+
+    if (bars[2]:IsShown()) then
+        bars[2]:SetPoint("BOTTOMLEFT",8,9);
+        bars[2]:SetPoint("BOTTOMRIGHT",-8,9);
+
+        if (bars[1]:IsShown()) then
+            bars[1]:SetPoint("BOTTOMLEFT",bars[2],"TOPLEFT",0,4);
+            bars[1]:SetPoint("BOTTOMRIGHT",bars[2],"TOPRIGHT",0,4);
+        end
+    elseif (bars[1]:IsShown()) then
+        bars[1]:SetPoint("BOTTOMLEFT",8,9);
+        bars[1]:SetPoint("BOTTOMRIGHT",-8,9);
+    end
 end
 
 -- Format Number Value
@@ -787,7 +816,7 @@ end
 
 -- GTT Control Variables
 local gtt_lastUpdate = 0;
-local gtt_resizePending = false;
+local gtt_newHeight;
 local gtt_anchorType;
 local gtt_anchorPoint;
 
@@ -804,9 +833,15 @@ end
 local gttShow = gtt.Show;
 gtt.Show = function(self,...)
     gttShow(self,...);
+
     if (bars.offset) then
-        gtt_resizePending = true;
+        gtt_newHeight = (self:GetHeight() + bars.offset);
+        self:SetHeight(gtt_newHeight);
     end
+
+    -- Blizzard may have changed the tooltip dimensions during Show().
+    -- Re-anchor our custom bars against the final tooltip size.
+    ReanchorHealthAndPowerBars();
 end
 
 -- HOOK: GTT:FadeOut -- This allows us to check when the tip is fading out.
@@ -825,10 +860,6 @@ end
 
 -- HOOK: GTT OnShow -- This ensures that default anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 local function GTTHook_OnShow(self,...)
-    -- TEST: WorldFrame/3D ohne TipTac-OnShow-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 	if (gtt_anchorType == "mouse") and (self:GetAnchorType() ~= "ANCHOR_CURSOR") then
 		tt:AnchorFrameToMouse(self);
@@ -840,10 +871,6 @@ end
 
 -- HOOK: GTT OnUpdate
 local function GTTHook_OnUpdate(self,elapsed)
-    -- TEST: WorldFrame/3D ohne TipTac-OnUpdate-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	-- This ensures that mouse anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 	if (self:GetAnchorType() == "ANCHOR_CURSOR") then
 		self:SetBackdropColor(unpack(cfg.tipColor));
@@ -875,14 +902,13 @@ local function GTTHook_OnUpdate(self,elapsed)
 		end
 	end
 
-	-- Deferred resize:
--- Blizzard kann die GameTooltip-Hoehe nach OnTooltipSetUnit
--- noch einmal selbst veraendern. Deshalb wird die zusaetzliche
--- Hoehe erst im folgenden OnUpdate angewendet.
-if (gtt_resizePending) and (bars.offset) and (self:IsShown()) then
-    self:SetHeight(self:GetHeight() + bars.offset);
-    gtt_resizePending = false;
-end
+	-- Resize the Tooltip if it's size has changed more than 0.1 units
+	if (gtt_newHeight) and (abs(self:GetHeight() - gtt_newHeight) > 0.1) then
+		self:SetHeight(gtt_newHeight);
+	end
+
+	-- Re-anchor custom status bars after any tooltip size correction.
+	ReanchorHealthAndPowerBars();
 end
 
 -- HOOK: GTT OnTooltipSetUnit
@@ -921,11 +947,12 @@ end
 
 -- HOOK: GTT OnTooltipCleared -- This will clean up auras, bars, raid icon and vars for the gtt when we aren't showing a unit
 local function GTTHook_OnTooltipCleared(self,...)
-	wipe(u);
-	gtt_lastUpdate = 0;
-    gtt_resizePending = false;
-	self.fadeOut = nil;
-	bars.offset = nil;
+    wipe(u);
+    gtt_lastUpdate = 0;
+    gtt_newHeight = nil;
+    self.fadeOut = nil;
+    bars.offset = nil;
+    bars.needsReanchor = nil;
 	for i = 1, #bars do
 		bars[i]:Hide();
 	end

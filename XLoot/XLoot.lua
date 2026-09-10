@@ -84,9 +84,58 @@ function XLoot:OpenMenu(frame)
 	)
 end
 
+-- ============================================================
+-- Disable loot confirmation dialogs
+-- XLoot r366 / WoW 3.3.5a
+-- ============================================================
+
+function XLoot:DisableLootConfirmations()
+	-- ------------------------------------------------------------
+	-- Need / Greed / Disenchant
+	-- ------------------------------------------------------------
+	local confirmFrame = CreateFrame("Frame", "XLootConfirmFrame")
+	confirmFrame:RegisterEvent("CONFIRM_LOOT_ROLL")
+	confirmFrame:RegisterEvent("CONFIRM_DISENCHANT_ROLL")
+
+	confirmFrame:SetScript("OnEvent", function(self, event, ...)
+		local rollID, rollType = ...
+
+		if rollID then
+			ConfirmLootRoll(rollID, rollType)
+		end
+	end)
+
+	-- Blizzard would otherwise create the confirmation popup
+	StaticPopupDialogs["CONFIRM_LOOT_ROLL"] = nil
+
+	-- ------------------------------------------------------------
+	-- Bind on Pickup
+	-- ------------------------------------------------------------
+	confirmFrame:RegisterEvent("LOOT_BIND_CONFIRM")
+
+	-- Blizzard would otherwise create the LOOT_BIND popup
+	StaticPopupDialogs["LOOT_BIND"] = nil
+
+	confirmFrame:SetScript("OnEvent", function(self, event, ...)
+		if event == "CONFIRM_LOOT_ROLL" or event == "CONFIRM_DISENCHANT_ROLL" then
+			local rollID, rollType = ...
+
+			if rollID then
+				ConfirmLootRoll(rollID, rollType)
+			end
+
+		elseif event == "LOOT_BIND_CONFIRM" then
+			ConfirmBindOnUse()
+		end
+	end)
+
+	self.confirmFrame = confirmFrame
+end
+
 --Hook builtin functions
 function XLoot:OnEnable()
 	local db = self.db.profile
+	self:DisableLootConfirmations()
 	self:Hook("CloseSpecialWindows", true)
 	self:Hook("LootButton_OnClick", "OnModifiedButtonClick", true)
 	LootFrame:SetScript("OnUpdate", self.LootFrame_Update)

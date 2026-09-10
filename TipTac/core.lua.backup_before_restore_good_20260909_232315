@@ -1,4 +1,4 @@
-local _G = getfenv(0);
+﻿local _G = getfenv(0);
 local abs = abs;
 local gtt = GameTooltip;
 local UnitExists = UnitExists;
@@ -825,13 +825,9 @@ end
 
 -- HOOK: GTT OnShow -- This ensures that default anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 local function GTTHook_OnShow(self,...)
-    -- TEST: WorldFrame/3D ohne TipTac-OnShow-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
 	gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 	if (gtt_anchorType == "mouse") and (self:GetAnchorType() ~= "ANCHOR_CURSOR") then
-		tt:AnchorFrameToMouse(self);
+		-- TEST: OnShow verschiebt den Tooltip nicht zur Maus.
 	end
 	if (self:IsOwned(UIParent)) and (not self:GetUnit()) then
 		self:SetBackdropColor(unpack(cfg.tipColor));
@@ -840,11 +836,11 @@ end
 
 -- HOOK: GTT OnUpdate
 local function GTTHook_OnUpdate(self,elapsed)
-    -- TEST: WorldFrame/3D ohne TipTac-OnUpdate-Geometrie.
-    if (GetMouseFocus() == WorldFrame) then
-        return;
-    end
-	-- This ensures that mouse anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
+	        -- FIX: WorldFrame-Tooltips nicht durch TipTac-OnUpdate-Geometrie verändern.
+        if (GetMouseFocus() == WorldFrame) then
+                return;
+        end
+-- This ensures that mouse anchored world frame tips have the proper color, their internal function seems to set them to a dark blue color
 	if (self:GetAnchorType() == "ANCHOR_CURSOR") then
 		self:SetBackdropColor(unpack(cfg.tipColor));
 		self:SetBackdropBorderColor(unpack(cfg.tipBorderColor));
@@ -982,7 +978,7 @@ function tt:HookTips()
 		gtt_anchorType, gtt_anchorPoint = GetAnchorPosition();
 		tooltip:SetOwner(parent,"ANCHOR_NONE");
 		if (gtt_anchorType == "mouse") then
-			tt:AnchorFrameToMouse(tooltip);
+			-- TEST: DefaultAnchor verschiebt den Tooltip nicht erneut zur Maus.
 		elseif (gtt_anchorType == "parent") then
 			tooltip:SetPoint(TT_MirrorAnchorsSmart[gtt_anchorPoint] or TT_MirrorAnchors[gtt_anchorPoint],parent,gtt_anchorPoint);
 		else
